@@ -1,10 +1,7 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-#
 # filer --- Store and recover sets of files associated to elastic
 #           tags.
 #
-# Version 0.2, September 2012
+# Version 0.2, August 2012
 #
 # Copyright (C) 2012 Juan Reyero (http://juanreyero.com).
 #

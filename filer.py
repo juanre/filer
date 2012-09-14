@@ -92,10 +92,13 @@ class Lock():
 
 class Filer(object):
     def __init__(self, store=os.path.join("/", "var", "filer")):
+        self.set_store(store)
+        self.tags_file = os.path.join(store, 'filer.pkl')
+
+    def set_store(self, store):
         if not os.path.exists(store):
             os.makedirs(store)
         self.store = store
-        self.tags_file = os.path.join(store, 'filer.pkl')
 
     def reset(self):
         import shutil

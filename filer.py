@@ -31,20 +31,29 @@ Example:
 >>> fl.store_file_content('filer-second', 'this content, company second',
 ...                       {'lang': 'es', 'company': 'second'})
 >>> fl.get_content_files({'lang': 'es'})[0]
-'store/7a/792da20efd5a2141eeed30affb01e6/content'
->>> fl.get_content_files({'lang': 'es'})[-1]
 'store/6b/3c0824d17fca756ebb6b2b0c07c158/content'
+>>> fl.get_content_files({'lang': 'es'})[-1]
+'store/7a/792da20efd5a2141eeed30affb01e6/content'
 >>> fl.get_meta({'lang': 'es', 'company': 'first'})[0]['name']
 'filer-first'
 >>> fl.get_meta({'lang': 'es', 'company': 'first'})[-1]['name']
 'filer-first'
 >>> fl.get_meta({'lang': 'es'})[-1]['name']
-'filer-second'
+'filer-first'
+>>> fl.get_meta({'lang': 'es'})[-1]['tag']
+{'lang': 'es', 'company': 'first'}
 >>> fl.get({'lang': 'es', 'company': 'first'})[-1]['meta']['name']
 'filer-first'
 >>> fi = open(fl.get({'lang': 'es', 'company': 'first'})[-1]['file'])
 >>> fi.read()
 'this content, company first'
+>>> fl.get_content({'lang': 'es', 'company': 'first'},
+...                hook=lambda x: x.upper())
+['THIS CONTENT, COMPANY FIRST']
+>>> ### The second time finds it cached
+>>> fl.get_content({'lang': 'es', 'company': 'first'},
+...                hook=lambda x: x.upper())
+['THIS CONTENT, COMPANY FIRST']
 """
 
 import os, os.path
@@ -94,6 +103,7 @@ class Filer(object):
     def __init__(self, store=os.path.join("/", "var", "filer")):
         self.set_store(store)
         self.tags_file = os.path.join(store, 'filer.pkl')
+        self.__cache = {}
 
     def set_store(self, store):
         if not os.path.exists(store):
@@ -111,7 +121,7 @@ class Filer(object):
                 tags = pickle.load(open(self.tags_file, 'rb'))
             else:
                 tags = ElasTag()
-            tags.append(tag, value)
+            tags.add(tag, value)
             pickle.dump(tags, open(self.tags_file, 'wb'))
 
     def unique_path(self, shash):
@@ -142,7 +152,7 @@ class Filer(object):
         to the dictionary tag has been stored.
         """
         tags = pickle.load(open(self.tags_file, 'rb'))
-        return [self.content_file(shash) for shash in tags.all(tag)]
+        return [self.content_file(shash) for shash in tags.bag(tag)]
 
     def get_meta(self, tag):
         """Returns a list of dictionaries with the metadata of all the
@@ -152,7 +162,7 @@ class Filer(object):
         """
         tags = pickle.load(open(self.tags_file, 'rb'))
         return [pickle.load(open(self.meta_file(shash), 'rb'))
-                for shash in tags.all(tag)]
+                for shash in tags.bag(tag)]
 
     def get(self, tag):
         """Returns a list of dictionaries with the metadata (key
@@ -164,7 +174,26 @@ class Filer(object):
         tags = pickle.load(open(self.tags_file, 'rb'))
         return [{'meta': pickle.load(open(self.meta_file(shash), 'rb')),
                  'file': self.content_file(shash)}
-                for shash in tags.all(tag)]
+                for shash in tags.bag(tag)]
+
+    def file_content(self, fname, hook):
+        if fname in self.__cache and hook in self.__cache[fname]:
+            return self.__cache[hook][fname]
+        content = open(fname, 'r').read()
+        if hook is not None:
+            content = hook(content)
+        if hook not in self.__cache:
+            self.__cache[hook] = {}
+        self.__cache[hook][fname] = content
+        return content
+
+    def get_content(self, tag, hook=None):
+        """Returns the content of the files corresponding to the
+        dictionary tag.  If hook is not none it will be run on each
+        file content.
+        """
+        return [self.file_content(fname, hook)
+                for fname in self.get_content_files(tag)]
 
 
 def _test():

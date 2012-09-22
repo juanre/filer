@@ -26,12 +26,12 @@ Example:
 
 >>> fl = Filer('store')
 >>> fl.reset()
->>> fl.store_file_content('filer-first',
+>>> fl.store_file_content('this content, company first',
 ...                       {'lang': 'es', 'company': 'first'},
-...                       'this content, company first')
->>> fl.store_file_content('filer-second',
+...                       name='filer-first')
+>>> fl.store_file_content('this content, company second',
 ...                       {'lang': 'es', 'company': 'second'},
-...                       'this content, company second')
+...                       name='filer-second')
 >>> fl.get_content_files({'lang': 'es'})[0]
 'store/6b/3c0824d17fca756ebb6b2b0c07c158/content'
 >>> fl.get_content_files({'lang': 'es'})[-1]
@@ -138,12 +138,10 @@ class Filer(object):
     def meta_file(self, shash):
         return os.path.join(self.unique_path(shash), 'meta.pkl')
 
-    def store_file_content(self, name, tag, content=None, meta=None):
+    def store_file_content(self, content, tag, meta=None, name=None):
         """Stores the content of the file named name, associated to
         the dictionary tag.
         """
-        if content is None:
-            content = open(name).read()
         shash = _shash(content)
         self.store_tag(tag, shash)
         with open(self.content_file(shash), 'wb') as f:
@@ -153,6 +151,12 @@ class Filer(object):
         meta['name'] = name
         meta['tag'] = tag
         pickle.dump(meta, open(self.meta_file(shash), 'w'))
+
+    def store_file(self, tag, name, meta=None):
+        """Stores the content of the file named name, associated to
+        the dictionary tag.
+        """
+        self.store_file_content(open(name).read(), tag, meta, name)
 
     def get_content_files(self, tag):
         """Returns a list of the files where the content corresponding

@@ -1,4 +1,0 @@
-
-
-* Filer
-Store and recover files associated to elastic tags.

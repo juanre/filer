@@ -1,0 +1,40 @@
+
+
+* Filer
+Store and recover files associated to elastic tags.
+
+Example:
+
+>>> fl = Filer('store')
+>>> fl.reset()
+>>> fl.store_file_content('this content, company first',
+...                       {'lang': 'es', 'company': 'first'},
+...                       name='filer-first')
+>>> fl.store_file_content('this content, company second',
+...                       {'lang': 'es', 'company': 'second'},
+...                       name='filer-second')
+>>> fl.get_content_files({'lang': 'es'})[0]
+'store/6b/3c0824d17fca756ebb6b2b0c07c158/content'
+>>> fl.get_content_files({'lang': 'es'})[-1]
+'store/7a/792da20efd5a2141eeed30affb01e6/content'
+>>> fl.get_meta({'lang': 'es', 'company': 'first'})[0]['name']
+'filer-first'
+>>> fl.get_meta({'lang': 'es', 'company': 'first'})[-1]['name']
+'filer-first'
+>>> fl.get_meta({'lang': 'es'})[-1]['name']
+'filer-first'
+>>> fl.get_meta({'lang': 'es'})[-1]['tag']
+{'lang': 'es', 'company': 'first'}
+>>> fl.get({'lang': 'es', 'company': 'first'})[-1][1]['name']
+'filer-first'
+>>> fi = open(fl.get({'lang': 'es', 'company': 'first'})[-1][0])
+>>> fi.read()
+'this content, company first'
+>>> fl.get_content({'lang': 'es', 'company': 'first'},
+...                reader=lambda x, tag, name: open(x).read().upper())
+['THIS CONTENT, COMPANY FIRST']
+>>> ### The second time finds it cached
+>>> fl.get_content({'lang': 'es', 'company': 'first'},
+...                reader=lambda x, tag, name: open(x).read().upper())
+['THIS CONTENT, COMPANY FIRST']
+"""

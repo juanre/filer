@@ -104,18 +104,19 @@ class Lock():
 class Filer(object):
     def __init__(self, store=os.path.join("/", "var", "filer")):
         self.set_store(store)
-        self.tags_file = os.path.join(store, 'filer.pkl')
-        self.__cache = {}
 
     def set_store(self, store):
         if not os.path.exists(store):
             os.makedirs(store)
         self.store = store
+        self.tags_file = os.path.join(store, 'filer.pkl')
+        self.__cache = {}
 
     def reset(self):
         import shutil
         shutil.rmtree(self.store)
         os.makedirs(self.store)
+        self.__cache = {}
 
     def store_tag(self, tag, value):
         with Lock(os.path.join(self.store, 'lock')):
@@ -152,7 +153,7 @@ class Filer(object):
         meta['tag'] = tag
         pickle.dump(meta, open(self.meta_file(shash), 'w'))
 
-    def store_file(self, tag, name, meta=None):
+    def store_file(self, name, tag, meta=None):
         """Stores the content of the file named name, associated to
         the dictionary tag.
         """

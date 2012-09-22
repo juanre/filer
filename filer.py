@@ -25,11 +25,13 @@ tags.
 Example:
 
 >>> fl = Filer('store')
->>> #fl.reset()
->>> fl.store_file_content('filer-first', 'this content, company first',
-...                       {'lang': 'es', 'company': 'first'})
->>> fl.store_file_content('filer-second', 'this content, company second',
-...                       {'lang': 'es', 'company': 'second'})
+>>> fl.reset()
+>>> fl.store_file_content('filer-first',
+...                       {'lang': 'es', 'company': 'first'},
+...                       'this content, company first')
+>>> fl.store_file_content('filer-second',
+...                       {'lang': 'es', 'company': 'second'},
+...                       'this content, company second')
 >>> fl.get_content_files({'lang': 'es'})[0]
 'store/6b/3c0824d17fca756ebb6b2b0c07c158/content'
 >>> fl.get_content_files({'lang': 'es'})[-1]
@@ -42,17 +44,17 @@ Example:
 'filer-first'
 >>> fl.get_meta({'lang': 'es'})[-1]['tag']
 {'lang': 'es', 'company': 'first'}
->>> fl.get({'lang': 'es', 'company': 'first'})[-1]['meta']['name']
+>>> fl.get({'lang': 'es', 'company': 'first'})[-1][1]['name']
 'filer-first'
->>> fi = open(fl.get({'lang': 'es', 'company': 'first'})[-1]['file'])
+>>> fi = open(fl.get({'lang': 'es', 'company': 'first'})[-1][0])
 >>> fi.read()
 'this content, company first'
 >>> fl.get_content({'lang': 'es', 'company': 'first'},
-...                hook=lambda x: x.upper())
+...                reader=lambda x, tag, name: open(x).read().upper())
 ['THIS CONTENT, COMPANY FIRST']
 >>> ### The second time finds it cached
 >>> fl.get_content({'lang': 'es', 'company': 'first'},
-...                hook=lambda x: x.upper())
+...                reader=lambda x, tag, name: open(x).read().upper())
 ['THIS CONTENT, COMPANY FIRST']
 """
 
@@ -136,16 +138,21 @@ class Filer(object):
     def meta_file(self, shash):
         return os.path.join(self.unique_path(shash), 'meta.pkl')
 
-    def store_file_content(self, name, content, tag):
+    def store_file_content(self, name, tag, content=None, meta=None):
         """Stores the content of the file named name, associated to
         the dictionary tag.
         """
+        if content is None:
+            content = open(name).read()
         shash = _shash(content)
         self.store_tag(tag, shash)
         with open(self.content_file(shash), 'wb') as f:
             f.write(content)
-        pickle.dump({'name': name, 'tag': tag},
-                    open(self.meta_file(shash), 'w'))
+        if meta is None:
+            meta = {}
+        meta['name'] = name
+        meta['tag'] = tag
+        pickle.dump(meta, open(self.meta_file(shash), 'w'))
 
     def get_content_files(self, tag):
         """Returns a list of the files where the content corresponding
@@ -165,35 +172,37 @@ class Filer(object):
                 for shash in tags.bag(tag)]
 
     def get(self, tag):
-        """Returns a list of dictionaries with the metadata (key
-        'meta') and the file where the content has been stored (key
-        'file').  The metadata is another dictionary with two entries:
-        name, the original file name, and tag, the original tag
-        dictionary.
+        """Returns a list of tuples with the file where the content
+        has been stored and the metadata.  The metadata is a
+        dictionary with two fixed entries (name, the original file
+        name, and tag, the original tag dictionary) plus any metadata
+        that was assigned to the file when storing it.
         """
         tags = pickle.load(open(self.tags_file, 'rb'))
-        return [{'meta': pickle.load(open(self.meta_file(shash), 'rb')),
-                 'file': self.content_file(shash)}
+        return [(self.content_file(shash),
+                 pickle.load(open(self.meta_file(shash), 'rb')))
                 for shash in tags.bag(tag)]
 
-    def file_content(self, fname, hook):
+    def file_content(self, fname, meta, reader=None):
         if fname in self.__cache and hook in self.__cache[fname]:
             return self.__cache[hook][fname]
-        content = open(fname, 'r').read()
-        if hook is not None:
-            content = hook(content)
-        if hook not in self.__cache:
-            self.__cache[hook] = {}
-        self.__cache[hook][fname] = content
+        #content = open(fname, 'r').read()
+        if reader is not None:
+            content = reader(fname, **meta)
+        else:
+            content = open(fname).read()
+        if reader not in self.__cache:
+            self.__cache[reader] = {}
+        self.__cache[reader][fname] = content
         return content
 
-    def get_content(self, tag, hook=None):
+    def get_content(self, tag, reader=None):
         """Returns the content of the files corresponding to the
-        dictionary tag.  If hook is not none it will be run on each
-        file content.
+        dictionary tag.  If reader is not none it will be run on each
+        file's name.
         """
-        return [self.file_content(fname, hook)
-                for fname in self.get_content_files(tag)]
+        return [self.file_content(fname, meta, reader)
+                for fname, meta in self.get(tag)]
 
 
 def _test():
